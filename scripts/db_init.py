@@ -1,16 +1,12 @@
-from sqlalchemy import create_engine, MetaData, Table, Integer, String, \
-    Column, DateTime, ForeignKey, Numeric
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker, Session
-
-Base = declarative_base()
-
-engine = create_engine("sqlite:///cloud.db")
-
-session = Session(bind=engine)
+from sqlalchemy import Integer, String, \
+    Column, ForeignKey
+from sqlalchemy.orm import relationship
+from scripts.db_session import SqlAlchemyBase as Base
 
 
 class Users(Base):
     __tablename__ = 'users'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     telegram_id = Column(Integer, nullable=False, unique=True)
     tags = relationship("Tags")
@@ -21,22 +17,22 @@ class Users(Base):
 
 class Tags(Base):
     __tablename__ = 'tags'
+
     id = Column(Integer, primary_key=True, autoincrement=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False)
-    tag_name = Column(String(50), nullable=False)
+    tag_name = Column(String, nullable=False)
     files = relationship('Files')
 
     def __repr__(self):
-        return f"TagData(id={self.id}, user_id={self.user_id}, tag={self.tag_name})"
+        return f"TagData(tag_id={self.id}, user_id={self.user_id}, tag_name={self.tag_name})"
 
 
 
 class Files(Base):
     __tablename__ = "files"
+
     id = Column(Integer, primary_key=True, autoincrement=True)
+    file_id = Column(String)
     tag_id = Column(Integer, ForeignKey('tags.id'), nullable=False)
-    type = Column(String(20), nullable=False)
-
-
-
-Base.metadata.create_all(engine)
+    type = Column(String, nullable=False)
+    name = Column(String)
