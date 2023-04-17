@@ -1,12 +1,12 @@
 from scripts.db_session import global_init
 from telebot import TeleBot
-from scripts import config, db_handler, file_handler, keyboards
+from scripts import config, db_handler, file_handler, keyboards, features
 
 
 bot = TeleBot(config.TOKEN)
 global_init()
 
-# TODO Удаление пустых тегов; Ввод тегов после файла; Решить вопрос с максимальной длиной тегов
+
 @bot.message_handler(commands=['start'])
 def start(message):
     db_handler.new_user(user_id=message.from_user.id)
@@ -16,32 +16,39 @@ def start(message):
 
 
 @bot.message_handler(content_types=['document'])
-def doc_handler(message): file_handler.get_data(message=message, doc_type='document', file_id=message.document.file_id, file_name=message.document.file_name)
+def doc_handler(message): file_handler.get_data(message=message, doc_type='document', file_id=message.document.file_id,
+                                                file_name=message.document.file_name)
 
 
 @bot.message_handler(content_types=['video'])
-def doc_handler(message): file_handler.get_data(message=message, doc_type='video', file_id=message.video.file_id, file_name=message.video.file_name)
+def doc_handler(message): file_handler.get_data(message=message, doc_type='video', file_id=message.video.file_id,
+                                                file_name=message.video.file_name)
 
 
 @bot.message_handler(content_types=['audio'])
-def doc_handler(message): file_handler.get_data(message=message, doc_type='audio', file_id=message.audio.file_id, file_name=message.audio.file_name)
+def doc_handler(message): file_handler.get_data(message=message, doc_type='audio', file_id=message.audio.file_id,
+                                                file_name=message.audio.file_name)
 
 
 @bot.message_handler(content_types=['photo'])
-def doc_handler(message): file_handler.get_data(message=message, doc_type='photo', file_id=message.photo[-1].file_id)
+def doc_handler(message): bot.send_message(message.chat.id,
+                                           text="Фото необходимо отправлять без сжатия")  # file_handler.get_data(message=message, doc_type='photo', file_id=message.photo[-1].file_id)
 
 
 @bot.message_handler(content_types=['video_note'])
-def doc_handler(message): file_handler.get_data(message=message, doc_type='video_note', file_id=message.video_note.file_id)
+def doc_handler(message): file_handler.get_data(message=message, doc_type='video_note',
+                                                file_id=message.video_note.file_id)
 
 
 @bot.message_handler(content_types=['voice'])
 def doc_handler(message): file_handler.get_data(message=message, doc_type='voice', file_id=message.voice.file_id)
 
 
-@bot.message_handler(content_types=['text'])
+@bot.message_handler(content_types=['text', 'document'])
 def send_file(message):
-    if message.text == "Мои теги":
+    if not features.TAG:
+        features.add_tag_from_message(message)
+    elif message.text == "Мои теги":
         bot.send_message(message.chat.id, text='Ваши теги:', reply_markup=keyboards.get_tags(message.from_user.id))
     else:
         bot.send_message(message.chat.id, text='no', reply_markup=None)

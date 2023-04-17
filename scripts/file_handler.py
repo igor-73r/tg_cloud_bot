@@ -1,24 +1,33 @@
-from scripts import db_handler, config, keyboards
+from scripts import db_handler, config, keyboards, features
 import telebot
+import threading
+
+bot = telebot.TeleBot(config.TOKEN)
+
+
+def reset_tag(message):
+    db_handler.update_current_tag(db_handler.get_db_user_id(message.from_user.id), None)
+
+
+timer = threading.Timer(600, reset_tag)
 
 
 def get_data(message, doc_type, file_id, file_name=None):
-    bot = telebot.TeleBot(config.TOKEN)
-    try:
-        db_handler.new_file(user_id=message.from_user.id,
-                            tag_name=message.caption,
-                            file_id=file_id,
-                            f_type=doc_type,
-                            file_name=file_name)
-        bot.send_message(message.chat.id, text="Файл успешно загружен!", reply_markup=keyboards.default_keyboard)
-    except Exception:
-        bot.send_message(message.chat.id, text="Что то пошло не так", reply_markup=keyboards.default_keyboard)
+    current_tag = db_handler.get_current_tag(db_handler.get_db_user_id(message.from_user.id))
 
-    # if message.caption:  # TODO Обработка ввода тега
-    #     file_data['tag_name'] = message.caption
-    # else:
-    #     bot.reply_to(message, text='Введите тег')
-    # print(file_data)
+    if not message.caption and current_tag is None:
+        features.match_tag(message=message, d_type=doc_type, f_id=file_id, f_name=file_name)
+
+    elif not message.caption and current_tag is not None:
+        print(current_tag)
+        features.load_file(message, current_tag, doc_type, file_id, file_name)
+
+    elif message.caption and current_tag is None or current_tag is not None:
+        db_handler.update_current_tag(db_handler.get_db_user_id(message.from_user.id), message.caption)
+        current_tag = db_handler.get_current_tag(db_handler.get_db_user_id(message.from_user.id))
+        print(current_tag)
+        features.load_file(message=message, tag_name=message.caption,
+                           doc_type=doc_type, file_id=file_id, file_name=file_name)
 
 
 def send_data(call):
@@ -27,10 +36,6 @@ def send_data(call):
     file_data = db_handler.get_file_by_id(f_id)
     print(file_data.type, file_data.file_id, "file_data")
     type_handler(call.message.chat.id, file_data.type, file_data.file_id)
-    # if file_data:
-    #     bot.send_document(chat_id=file_data['chat_id'], document=file_data['file_id'])
-    # else:
-    #     pass
 
 
 def type_handler(chat_id, type, file_id):

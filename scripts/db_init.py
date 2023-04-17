@@ -9,6 +9,7 @@ class Users(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     telegram_id = Column(Integer, nullable=False, unique=True)
+    current_tag = Column(String, default=None)
     tags = relationship("Tags")
 
     def __repr__(self):

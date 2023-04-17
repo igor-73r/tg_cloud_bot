@@ -1,6 +1,7 @@
 import sqlalchemy.exc
 from scripts.db_init import *
 from scripts.db_session import create_session
+from scripts import features
 
 
 def new_user(user_id):
@@ -15,10 +16,26 @@ def new_user(user_id):
     session.close()
 
 
+def update_current_tag(user_id, tag_id):
+    session = create_session()
+    user = session.query(Users).filter(Users.id == user_id).first()
+    user.current_tag = tag_id
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    session.close()
+
+
+def get_current_tag(user_id):
+    session = create_session()
+    tag = session.query(Users.current_tag).filter(Users.id == user_id).first()[0]
+    session.close()
+    return tag
+
+
 def new_tag(user_id, tag_name):
     session = create_session()
     u_id = get_db_user_id(user_id=user_id)
-    print(u_id)  # TODO DEBUG
     tag = Tags(user_id=u_id, tag_name=tag_name)
     if (tag.user_id, tag.tag_name) in session.query(Tags.user_id, Tags.tag_name).all():
         res = session.query(Tags).filter(Tags.user_id == tag.user_id,
@@ -26,10 +43,9 @@ def new_tag(user_id, tag_name):
         session.close()
         return res
     else:
-        print("ЗАШЛИ НЕ ТУДА-------------------")
         session.add(tag)
         session.commit()
-        print(session.query(Users).all())  # TODO DEBUG
+        session.refresh(tag)
         session.close()
         return tag
 
@@ -37,7 +53,6 @@ def new_tag(user_id, tag_name):
 def new_file(user_id, tag_name, file_id, f_type, file_name):
     session = create_session()
     tag = new_tag(user_id=user_id, tag_name=tag_name)
-    print(tag)
     file = Files(file_id=file_id, tag_id=tag.id, type=f_type, name=file_name)
     session.add(file)
     session.commit()
@@ -51,10 +66,9 @@ def get_db_user_id(user_id):
     return user_id
 
 
-def get_files(user_id, tag_name):
+def get_files(tag_id):
     session = create_session()
-    tag = session.query(Tags).filter(Tags.user_id == get_db_user_id(user_id=user_id),
-                                     Tags.tag_name == tag_name).first()
+    tag = session.query(Tags).filter(Tags.id == tag_id).first()
     res = [{'id': i.id, 'f_name': i.name} for i in tag.files]
     session.close()
     return res
@@ -66,12 +80,11 @@ def get_file_by_id(id):
     session.close()
     return file_data
 
+
 def get_tags(user_id):
     session = create_session()
     user = session.query(Users).filter(Users.telegram_id == user_id).first()
-    # res = [i.tag_name for i in user.tags]
     res = [{'tag_id': i.id, 'user_id': i.user_id, 'tag_name': i.tag_name} for i in user.tags]
-    print(res)
     session.close()
     return res
 
