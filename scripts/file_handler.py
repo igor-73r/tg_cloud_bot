@@ -1,15 +1,10 @@
-from scripts import db_handler, config, keyboards, features
 import telebot
-import threading
 
-bot = telebot.TeleBot(config.TOKEN)
+from scripts import db_handler, config, keyboards, features
 
 
 def reset_tag(message):
     db_handler.update_current_tag(db_handler.get_db_user_id(message.from_user.id), None)
-
-
-timer = threading.Timer(600, reset_tag)
 
 
 def get_data(message, doc_type, file_id, file_name=None):
@@ -19,22 +14,18 @@ def get_data(message, doc_type, file_id, file_name=None):
         features.match_tag(message=message, d_type=doc_type, f_id=file_id, f_name=file_name)
 
     elif not message.caption and current_tag is not None:
-        print(current_tag)
         features.load_file(message, current_tag, doc_type, file_id, file_name)
 
     elif message.caption and current_tag is None or current_tag is not None:
         db_handler.update_current_tag(db_handler.get_db_user_id(message.from_user.id), message.caption)
         current_tag = db_handler.get_current_tag(db_handler.get_db_user_id(message.from_user.id))
-        print(current_tag)
         features.load_file(message=message, tag_name=message.caption,
                            doc_type=doc_type, file_id=file_id, file_name=file_name)
 
 
 def send_data(call):
     f_id = call.data.split(':')[1]
-    print(f_id, "f_id")
     file_data = db_handler.get_file_by_id(f_id)
-    print(file_data.type, file_data.file_id, "file_data")
     type_handler(call.message.chat.id, file_data.type, file_data.file_id)
 
 

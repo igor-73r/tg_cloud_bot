@@ -1,7 +1,6 @@
 from scripts.db_session import global_init
 from telebot import TeleBot
-from scripts import config, db_handler, file_handler, keyboards, features
-
+from scripts import config, db_handler, file_handler, keyboards, features, tag_handler
 
 bot = TeleBot(config.TOKEN)
 global_init()
@@ -10,8 +9,13 @@ global_init()
 @bot.message_handler(commands=['start'])
 def start(message):
     db_handler.new_user(user_id=message.from_user.id)
-    # db_handler.new_tag(user_id=message.from_user.id, tag_name="Test")
-    bot.send_message(message.chat.id, text="привет лох 8===D", reply_markup=keyboards.default_keyboard)
+    bot.send_message(message.chat.id, text=f"Привет {message.from_user.first_name}!\n"
+                                           f"Я твое карманное облако\n"
+                                           f"Для начала работы со мной, нужно создать тег, для этого отправь "
+                                           f"название тега в чат. После этого можешь начинать скидывать файлы, и они "
+                                           f"будут храниться в этом теге. Также, создать тег можно добавив комментарий "
+                                           f"к отправляемому документу. ",
+                     reply_markup=keyboards.default_keyboard)
     print(message.from_user.id)  # TODO DEBUG
 
 
@@ -31,8 +35,7 @@ def doc_handler(message): file_handler.get_data(message=message, doc_type='audio
 
 
 @bot.message_handler(content_types=['photo'])
-def doc_handler(message): bot.send_message(message.chat.id,
-                                           text="Фото необходимо отправлять без сжатия")  # file_handler.get_data(message=message, doc_type='photo', file_id=message.photo[-1].file_id)
+def doc_handler(message): file_handler.get_data(message=message, doc_type='photo', file_id=message.photo[-1].file_id)
 
 
 @bot.message_handler(content_types=['video_note'])
@@ -44,24 +47,40 @@ def doc_handler(message): file_handler.get_data(message=message, doc_type='video
 def doc_handler(message): file_handler.get_data(message=message, doc_type='voice', file_id=message.voice.file_id)
 
 
-@bot.message_handler(content_types=['text', 'document'])
+@bot.message_handler(content_types=['text'])
 def send_file(message):
-    if not features.TAG:
+    current_tag = db_handler.get_current_tag(db_handler.get_db_user_id(message.from_user.id))
+    if not features.TAG and message.text != "Мои теги" and message.text != "Удалить текущий тег":
         features.add_tag_from_message(message)
     elif message.text == "Мои теги":
-        bot.send_message(message.chat.id, text='Ваши теги:', reply_markup=keyboards.get_tags(message.from_user.id))
+        bot.send_message(message.chat.id,
+                         text=f"Вы находитесь в теге '{current_tag}'"
+                              f'\nВаши теги:', reply_markup=keyboards.get_tags(message.from_user.id))
+    elif message.text == "Удалить текущий тег":
+        bot.send_message(message.chat.id, text=f"Тег {current_tag} будет удален,"
+                                               f" а также будут удалены файлы с этим тегом. \nХотите продолжить?",
+                         reply_markup=keyboards.yes_no(current_tag))
     else:
-        bot.send_message(message.chat.id, text='no', reply_markup=None)
+        tag_handler.search_tag_from_message(message=message)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('open:'))
 def call_back(call):
-    bot.send_message(call.message.chat.id, text='Файлы с таким тегом', reply_markup=keyboards.get_files(call))
+    current_tag = db_handler.get_current_tag(db_handler.get_db_user_id(call.message.chat.id))
+    bot.send_message(call.message.chat.id,
+                     text=f"Файлы с тегом '{current_tag}':",
+                     reply_markup=keyboards.get_files(call))
+    bot.send_message(call.message.chat.id, text=f"Вы находитесь в теге '{current_tag}'",
+                     reply_markup=keyboards.rm_keyboard)
 
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('send:'))
 def call_back(call):
     file_handler.send_data(call)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('delete:'))
+def call_back(call):
+    tag_handler.remove_tag(call)
 
 
 bot.polling(none_stop=True, interval=0)

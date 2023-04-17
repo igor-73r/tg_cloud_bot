@@ -34,7 +34,6 @@ def load_file(message, tag_name, doc_type, file_id, file_name):
 
 
 def add_tag_from_message(message):
-    print("debug --> зашли в обработку ввода")
     global TAG, new_tag_name
     while not TAG:
         try:
@@ -44,7 +43,3 @@ def add_tag_from_message(message):
             bot.reply_to(message, "Что то пошло не так")
             raise Exception
     load_file(message=message, tag_name=new_tag_name, doc_type=doc_type, file_id=file_id, file_name=file_name)
-
-
-def search_tag_from_message():
-    pass
